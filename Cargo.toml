@@ -6,13 +6,6 @@ name = "ahc039"
 version = "0.1.0"
 edition = "2021"
 
-[package.metadata.cargo-compete.bin]
-ahc039-a = { alias = "a", problem = "https://atcoder.jp/contests/ahc039/tasks/ahc039_a" }
-
-[[bin]]
-name = "ahc039-a"
-path = "src/bin/a.rs"
-
 [dependencies]
 # 202301から:
 ac-library-rs = "=0.1.1"
