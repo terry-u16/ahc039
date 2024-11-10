@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use annealing::{Annealer, Neighbor, NeighborGenerator, SingleScore};
+use data_structures::IndexSet;
 use grid::{ConnectionChecker, Coord, CoordDiff, Map2d, ADJACENTS};
 #[allow(unused_imports)]
 use proconio::*;
@@ -42,7 +43,18 @@ fn main() {
 
     // div = 1
     let annealer = Annealer::new(TEMPS[0], TEMPS[1], thread_rng().gen(), 1024);
+    eprintln!(
+        "{} {}",
+        state.off_candidates.len(),
+        state.on_candidates.len()
+    );
     let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.2);
+    eprintln!(
+        "{} {}",
+        state.off_candidates.len(),
+        state.on_candidates.len()
+    );
+
     eprintln!("[MAP_SIZE = {}]", map_size);
     eprintln!("{}", stats);
     let (env, state) = split_half(&input, &env, &state);
@@ -102,11 +114,7 @@ fn split_half(input: &Input, env: &Env, state: &State) -> (Env, State) {
     }
 
     let env = Env::new(input, env.map_size * 2);
-    let state = State {
-        map,
-        score: old_state.score,
-        len: old_state.len,
-    };
+    let state = State::new(&env, map, old_state.score, old_state.len);
 
     (env, state)
 }
@@ -208,6 +216,20 @@ impl Env {
         }
     }
 
+    fn to_index(&self, c: Coord) -> usize {
+        (c.x() - 1) * self.map_size + c.y() - 1
+    }
+
+    fn to_coord(&self, index: usize) -> Coord {
+        let x = index / self.map_size + 1;
+        let y = index % self.map_size + 1;
+        Coord::new(x, y)
+    }
+
+    fn in_map(&self, c: Coord) -> bool {
+        c.x().wrapping_sub(1) < self.map_size && c.y().wrapping_sub(1) < self.map_size
+    }
+
     #[allow(dead_code)]
     fn dump_map(&self) {
         for col in (1..=self.map_size).rev() {
@@ -225,6 +247,8 @@ struct State {
     map: Map2d<bool>,
     score: i32,
     len: usize,
+    off_candidates: IndexSet,
+    on_candidates: IndexSet,
 }
 
 impl State {
@@ -237,10 +261,41 @@ impl State {
             }
         }
 
+        Self::new(env, map, 1, Input::MAP_SIZE * 4)
+    }
+
+    fn new(env: &Env, map: Map2d<bool>, score: i32, len: usize) -> Self {
+        let mut on_candidates = IndexSet::new(env.map_size * env.map_size);
+        let mut off_candidates = IndexSet::new(env.map_size * env.map_size);
+
+        for row in 1..=env.map_size {
+            for col in 1..=env.map_size {
+                let c = Coord::new(row, col);
+                let index = env.map_size * (row - 1) + col - 1;
+
+                let mut ok = false;
+
+                for &adj in ADJACENTS.iter() {
+                    let next = c + adj;
+                    ok |= map[c] ^ map[next];
+                }
+
+                if ok {
+                    if map[c] {
+                        off_candidates.add(index);
+                    } else {
+                        on_candidates.add(index);
+                    }
+                }
+            }
+        }
+
         Self {
             map,
-            score: 1,
-            len: Input::MAP_SIZE * 4,
+            score,
+            len,
+            on_candidates,
+            off_candidates,
         }
     }
 
@@ -382,9 +437,12 @@ impl OffNeigh {
         state: &State,
         rng: &mut impl Rng,
     ) -> Option<Box<dyn Neighbor<Env = Env, State = State>>> {
-        let x = rng.gen_range(1..=env.map_size);
-        let y = rng.gen_range(1..=env.map_size);
-        let c = Coord::new(x, y);
+        let Some(&index) = state.off_candidates.as_slice().choose(rng) else {
+            return None;
+        };
+        let c = env.to_coord(index);
+        let x = c.x();
+        let y = c.y();
 
         if !state.map[c] {
             return None;
@@ -449,6 +507,38 @@ impl Neighbor for OffNeigh {
         state.score -= env.fish_map[self.coord];
         state.len = state.len.wrapping_add_signed(self.len_diff);
         state.map[self.coord] = false;
+
+        state.off_candidates.remove(env.to_index(self.coord));
+        state.on_candidates.add(env.to_index(self.coord));
+
+        for &adj in ADJACENTS.iter() {
+            let next = self.coord + adj;
+            let index = env.to_index(next);
+
+            if !env.in_map(next) {
+                continue;
+            }
+
+            if state.map[next] && !state.off_candidates.contains(index) {
+                state.off_candidates.add(index);
+            } else if !state.map[next] && state.on_candidates.contains(index) {
+                let mut ok = false;
+
+                for &adj in ADJACENTS.iter() {
+                    let next = next + adj;
+
+                    if !env.in_map(next) {
+                        continue;
+                    }
+
+                    ok |= state.map[next];
+                }
+
+                if !ok {
+                    state.on_candidates.remove(index);
+                }
+            }
+        }
     }
 
     fn eval(
@@ -477,9 +567,12 @@ impl OnNeigh {
         state: &State,
         rng: &mut impl Rng,
     ) -> Option<Box<dyn Neighbor<Env = Env, State = State>>> {
-        let x = rng.gen_range(1..=env.map_size);
-        let y = rng.gen_range(1..=env.map_size);
-        let c = Coord::new(x, y);
+        let Some(&index) = state.on_candidates.as_slice().choose(rng) else {
+            return None;
+        };
+        let c = env.to_coord(index);
+        let x = c.x();
+        let y = c.y();
 
         if state.map[c] {
             return None;
@@ -544,6 +637,38 @@ impl Neighbor for OnNeigh {
         state.score += env.fish_map[self.coord];
         state.len = state.len.wrapping_add_signed(self.len_diff);
         state.map[self.coord] = true;
+
+        state.on_candidates.remove(env.to_index(self.coord));
+        state.off_candidates.add(env.to_index(self.coord));
+
+        for &adj in ADJACENTS.iter() {
+            let next = self.coord + adj;
+            let index = env.to_index(next);
+
+            if !env.in_map(next) {
+                continue;
+            }
+
+            if !state.map[next] && !state.on_candidates.contains(index) {
+                state.on_candidates.add(index);
+            } else if state.map[next] && state.off_candidates.contains(index) {
+                let mut ok = false;
+
+                for &adj in ADJACENTS.iter() {
+                    let next = next + adj;
+
+                    if !env.in_map(next) {
+                        continue;
+                    }
+
+                    ok |= !state.map[next];
+                }
+
+                if !ok {
+                    state.off_candidates.remove(index);
+                }
+            }
+        }
     }
 
     fn eval(
@@ -1391,6 +1516,155 @@ mod grid {
             let actual = map[Coord::new(1, 0)];
             let expected = 0;
             assert_eq!(expected, actual);
+        }
+    }
+}
+
+#[allow(dead_code)]
+mod data_structures {
+    use std::slice::Iter;
+
+    /// [0, n) の整数の集合を管理する定数倍が軽いデータ構造
+    ///
+    /// https://topcoder-tomerun.hatenablog.jp/entry/2021/06/12/134643
+    #[derive(Debug, Clone)]
+    pub struct IndexSet {
+        values: Vec<usize>,
+        positions: Vec<Option<usize>>,
+    }
+
+    impl IndexSet {
+        pub fn new(n: usize) -> Self {
+            Self {
+                values: vec![],
+                positions: vec![None; n],
+            }
+        }
+
+        pub fn add(&mut self, value: usize) {
+            let pos = &mut self.positions[value];
+
+            if pos.is_none() {
+                *pos = Some(self.values.len());
+                self.values.push(value);
+            }
+        }
+
+        pub fn remove(&mut self, value: usize) {
+            if let Some(index) = self.positions[value] {
+                let last = *self.values.last().unwrap();
+                self.values[index] = last;
+                self.values.pop();
+                self.positions[last] = Some(index);
+                self.positions[value] = None;
+            }
+        }
+
+        pub fn contains(&self, value: usize) -> bool {
+            self.positions[value].is_some()
+        }
+
+        pub fn len(&self) -> usize {
+            self.values.len()
+        }
+
+        pub fn iter(&self) -> Iter<usize> {
+            self.values.iter()
+        }
+
+        pub fn as_slice(&self) -> &[usize] {
+            &self.values
+        }
+    }
+
+    /// BFSを繰り返すときに訪問済みかを記録する配列を毎回初期化しなくて良くするアレ
+    ///
+    /// https://topcoder-tomerun.hatenablog.jp/entry/2022/11/06/145156
+    #[derive(Debug, Clone)]
+    pub struct FastClearArray {
+        values: Vec<u64>,
+        gen: u64,
+    }
+
+    impl FastClearArray {
+        pub fn new(len: usize) -> Self {
+            Self {
+                values: vec![0; len],
+                gen: 1,
+            }
+        }
+
+        pub fn clear(&mut self) {
+            self.gen += 1;
+        }
+
+        pub fn set_true(&mut self, index: usize) {
+            self.values[index] = self.gen;
+        }
+
+        pub fn get(&self, index: usize) -> bool {
+            self.values[index] == self.gen
+        }
+
+        pub fn len(&self) -> usize {
+            self.values.len()
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::{FastClearArray, IndexSet};
+        use itertools::Itertools;
+
+        #[test]
+        fn index_set() {
+            let mut set = IndexSet::new(10);
+            set.add(1);
+            set.add(5);
+            set.add(2);
+            assert_eq!(3, set.len());
+            assert!(set.contains(1));
+            assert!(!set.contains(0));
+            assert_eq!(set.iter().copied().sorted().collect_vec(), vec![1, 2, 5]);
+            assert_eq!(
+                set.as_slice().iter().copied().sorted().collect_vec(),
+                vec![1, 2, 5]
+            );
+
+            set.add(1);
+            assert_eq!(3, set.len());
+            assert!(set.contains(1));
+            assert_eq!(set.iter().copied().sorted().collect_vec(), vec![1, 2, 5]);
+
+            set.remove(5);
+            set.remove(2);
+            assert_eq!(1, set.len());
+            assert!(set.contains(1));
+            assert!(!set.contains(5));
+            assert!(!set.contains(2));
+            assert_eq!(set.iter().copied().sorted().collect_vec(), vec![1]);
+
+            set.remove(1);
+            set.remove(2);
+            assert_eq!(0, set.len());
+            assert!(!set.contains(1));
+            assert_eq!(set.iter().copied().sorted().collect_vec(), vec![]);
+        }
+
+        #[test]
+        fn fast_clear_array() {
+            let mut array = FastClearArray::new(5);
+            assert_eq!(array.get(0), false);
+
+            array.set_true(0);
+            assert_eq!(array.get(0), true);
+            assert_eq!(array.get(1), false);
+
+            array.clear();
+            assert_eq!(array.get(0), false);
+
+            array.set_true(0);
+            assert_eq!(array.get(0), true);
         }
     }
 }
