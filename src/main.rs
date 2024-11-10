@@ -34,7 +34,7 @@ fn main() {
     let env = Env::new(&input, 10);
     let state = State::init(&env);
     let neigh_gen = NeighGen;
-    let annealer = Annealer::new(1e2, 1e0, thread_rng().gen(), 1024);
+    let annealer = Annealer::new(5e2, 1e0, thread_rng().gen(), 1024);
     let (state, stats) = annealer.run(&env, state, &neigh_gen, 1.0);
     eprintln!("{}", stats);
     eprintln!("{} {}", state.score, state.len);
