@@ -31,18 +31,73 @@ impl<T: PartialOrd> ChangeMinMax for T {
 #[fastout]
 fn main() {
     let input = Input::read_input();
-    let env = Env::new(&input, 10);
+    let mut map_size = 10;
+    let env = Env::new(&input, map_size);
     let state = State::init(&env);
     let neigh_gen = NeighGen;
-    let annealer = Annealer::new(5e2, 1e0, thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 1.0);
+
+    const TEMPS: [f64; 5] = [5e2, 5e1, 1e1, 5e0, 1e0];
+
+    // div = 1
+    let annealer = Annealer::new(TEMPS[0], TEMPS[1], thread_rng().gen(), 1024);
+    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.2);
+    eprintln!("[MAP_SIZE = {}]", map_size);
+    eprintln!("{}", stats);
+    let (env, state) = split_half(&input, &env, &state);
+    map_size *= 2;
+
+    // div = 2
+    let annealer = Annealer::new(TEMPS[1], TEMPS[2], thread_rng().gen(), 1024);
+    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.4);
+    eprintln!("[MAP_SIZE = {}]", map_size);
+    eprintln!("{}", stats);
+    let (env, state) = split_half(&input, &env, &state);
+    map_size *= 2;
+
+    // div = 4
+    let annealer = Annealer::new(TEMPS[2], TEMPS[3], thread_rng().gen(), 1024);
+    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.5);
+    eprintln!("[MAP_SIZE = {}]", map_size);
+    eprintln!("{}", stats);
+    let (env, state) = split_half(&input, &env, &state);
+    map_size *= 2;
+
+    // div = 8
+    let annealer = Annealer::new(TEMPS[3], TEMPS[4], thread_rng().gen(), 1024);
+    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.8);
+    eprintln!("[MAP_SIZE = {}]", map_size);
     eprintln!("{}", stats);
     eprintln!("{} {}", state.score, state.len);
-    env.dump_map();
-    state.dump_map(&env);
 
     let output = state.to_output(&env);
     println!("{}", output);
+}
+
+fn split_half(input: &Input, env: &Env, state: &State) -> (Env, State) {
+    let old_state = state;
+    let mut map = Map2d::with_default(env.map_size * 2 + 2);
+
+    for row in 1..=env.map_size {
+        for col in 1..=env.map_size {
+            let c = Coord::new(row, col);
+
+            if old_state.map[c] {
+                map[row * 2 - 1][col * 2 - 1] = true;
+                map[row * 2][col * 2 - 1] = true;
+                map[row * 2 - 1][col * 2] = true;
+                map[row * 2][col * 2] = true;
+            }
+        }
+    }
+
+    let env = Env::new(input, env.map_size * 2);
+    let state = State {
+        map,
+        score: old_state.score,
+        len: old_state.len,
+    };
+
+    (env, state)
 }
 
 #[derive(Debug, Clone)]
