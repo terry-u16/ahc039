@@ -34,7 +34,7 @@ fn main() {
     let env = Env::new(&input, 10);
     let state = State::init(&env);
     let neigh_gen = NeighGen;
-    let annealer = Annealer::new(10.0, 0.1, thread_rng().gen(), 1024);
+    let annealer = Annealer::new(1e2, 1e0, thread_rng().gen(), 1024);
     let (state, stats) = annealer.run(&env, state, &neigh_gen, 1.0);
     eprintln!("{}", stats);
     eprintln!("{} {}", state.score, state.len);
@@ -221,7 +221,7 @@ impl NeighborGenerator for NeighGen {
         rng: &mut impl Rng,
     ) -> Box<dyn Neighbor<Env = Self::Env, State = Self::State>> {
         loop {
-            let neigh = if rng.gen_bool(1.0) {
+            let neigh = if rng.gen_bool(0.5) {
                 OffNeigh::gen(env, state, rng)
             } else {
                 OnNeigh::gen(env, state, rng)
@@ -255,7 +255,7 @@ impl OffNeigh {
 
         // 周囲が全部埋まってたらダメ
         // 連結性がなくなるのもダメ
-        let ok = ADJACENTS.iter().any(|&adj| !state.map[c + adj])
+        let ok = !ADJACENTS.iter().all(|&adj| state.map[c + adj])
             && CONNECTION_CHECKER.can_remove(c, |c| state.map[c]);
 
         if !ok {
@@ -350,7 +350,7 @@ impl OnNeigh {
 
         // 周囲が全部空だったらダメ
         // 空きマスの連結性がなくなるのもダメ
-        let ok = ADJACENTS.iter().any(|&adj| state.map[c + adj])
+        let ok = !ADJACENTS.iter().all(|&adj| !state.map[c + adj])
             && CONNECTION_CHECKER.can_remove(c, |c| !state.map[c]);
 
         if !ok {
