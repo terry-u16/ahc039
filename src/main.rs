@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use annealing::{Annealer, Neighbor, NeighborGenerator, SingleScore};
-use grid::{ConnectionChecker, Coord, Map2d, ADJACENTS};
+use grid::{ConnectionChecker, Coord, CoordDiff, Map2d, ADJACENTS};
 #[allow(unused_imports)]
 use proconio::*;
 #[allow(unused_imports)]
@@ -41,12 +41,7 @@ fn main() {
     env.dump_map();
     state.dump_map(&env);
 
-    let output = Output::new(vec![
-        (0, 0),
-        (0, Input::MAP_SIZE),
-        (Input::MAP_SIZE, Input::MAP_SIZE),
-        (Input::MAP_SIZE, 0),
-    ]);
+    let output = state.to_output(&env);
     println!("{}", output);
 }
 
@@ -196,6 +191,86 @@ impl State {
 
             eprintln!();
         }
+    }
+
+    fn to_output(&self, env: &Env) -> Output {
+        let mut coord = Coord::new(!0, !0);
+
+        'find_start: for x in 1..=env.map_size {
+            for y in 1..=env.map_size {
+                let c = Coord::new(x, y);
+
+                if self.map[c] {
+                    coord = c;
+                    break 'find_start;
+                }
+            }
+        }
+
+        let mut vertexes = vec![
+            (
+                env.coord_prefix_sum[coord.x() + 1],
+                env.coord_prefix_sum[coord.y()],
+            ),
+            (
+                env.coord_prefix_sum[coord.x()],
+                env.coord_prefix_sum[coord.y()],
+            ),
+        ];
+
+        const ADJS: [CoordDiff; 4] = [
+            CoordDiff::new(0, 1),
+            CoordDiff::new(1, 0),
+            CoordDiff::new(0, -1),
+            CoordDiff::new(-1, 0),
+        ];
+
+        let mut dir = 0;
+
+        while vertexes[0] != *vertexes.last().unwrap() {
+            // 左に曲がれる
+            let turn_left = (dir + 3) % 4;
+
+            if self.map[coord + ADJS[turn_left]] {
+                dir = turn_left;
+                coord = coord + ADJS[turn_left];
+                continue;
+            }
+
+            // 点を追加
+            let p = match dir {
+                0 => (
+                    env.coord_prefix_sum[coord.x()],
+                    env.coord_prefix_sum[coord.y() + 1],
+                ),
+                1 => (
+                    env.coord_prefix_sum[coord.x() + 1],
+                    env.coord_prefix_sum[coord.y() + 1],
+                ),
+                2 => (
+                    env.coord_prefix_sum[coord.x() + 1],
+                    env.coord_prefix_sum[coord.y()],
+                ),
+                3 => (
+                    env.coord_prefix_sum[coord.x()],
+                    env.coord_prefix_sum[coord.y()],
+                ),
+                _ => unreachable!(),
+            };
+
+            vertexes.push(p);
+
+            // 直進できる or not
+            if self.map[coord + ADJS[dir]] {
+                coord += ADJS[dir];
+            } else {
+                dir = (dir + 1) % 4;
+            }
+        }
+
+        vertexes.pop();
+
+        Output::new(vertexes)
     }
 }
 
@@ -876,11 +951,11 @@ mod grid {
             }
         }
 
-        pub const fn row(&self) -> usize {
+        pub const fn x(&self) -> usize {
             self.row as usize
         }
 
-        pub const fn col(&self) -> usize {
+        pub const fn y(&self) -> usize {
             self.col as usize
         }
 
@@ -1164,8 +1239,8 @@ mod grid {
                 while i < ADJACENTS.len() {
                     let adj = ADJACENTS[i];
                     let next = Coord::new(
-                        coord.row().wrapping_add_signed(adj.dr() as isize),
-                        coord.col().wrapping_add_signed(adj.dc() as isize),
+                        coord.x().wrapping_add_signed(adj.dr() as isize),
+                        coord.y().wrapping_add_signed(adj.dc() as isize),
                     );
 
                     if next.in_map(ConnectionChecker::AREA_SIZE) {
