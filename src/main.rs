@@ -48,7 +48,7 @@ fn main() {
         state.off_candidates.len(),
         state.on_candidates.len()
     );
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.2);
+    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.1);
     eprintln!(
         "{} {}",
         state.off_candidates.len(),
@@ -98,7 +98,7 @@ fn main() {
 
     // div = 16
     let annealer = Annealer::new(TEMPS[4], TEMPS[5], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.2);
+    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.3);
     eprintln!("[MAP_SIZE = {}]", map_size);
     eprintln!("{}", stats);
     let (env, state) = split_half(&input, &env, &state);
