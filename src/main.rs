@@ -36,7 +36,7 @@ fn main() {
     let env = Env::new(&input, map_size);
     let state = State::init(&env);
     let neigh_gen = NeighGen;
-    const TEMPS: [f64; 6] = [5e2, 5e1, 1e1, 5e0, 1e0, 3e-1];
+    const TEMPS: [f64; 6] = [5e2, 5e1, 1e1, 3e0, 1e0, 3e-1];
 
     let output = state.to_output(&env);
     println!("{}", output);
@@ -65,7 +65,7 @@ fn main() {
 
     // div = 2
     let annealer = Annealer::new(TEMPS[1], TEMPS[2], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.4);
+    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.3);
     eprintln!("[MAP_SIZE = {}]", map_size);
     eprintln!("{}", stats);
     let (env, state) = split_half(&input, &env, &state);
@@ -87,7 +87,7 @@ fn main() {
 
     // div = 8
     let annealer = Annealer::new(TEMPS[3], TEMPS[4], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.5);
+    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.6);
     eprintln!("[MAP_SIZE = {}]", map_size);
     eprintln!("{}", stats);
     let (env, state) = split_half(&input, &env, &state);
