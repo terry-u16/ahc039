@@ -47,7 +47,7 @@ fn main() {
 
 #[derive(Debug, Clone)]
 struct Input {
-    n: usize,
+    _n: usize,
     saba: Vec<(usize, usize)>,
     iwashi: Vec<(usize, usize)>,
 }
@@ -63,7 +63,11 @@ impl Input {
             iwashi: [(usize, usize); n],
         }
 
-        Self { n, saba, iwashi }
+        Self {
+            _n: n,
+            saba,
+            iwashi,
+        }
     }
 }
 
@@ -103,25 +107,15 @@ impl Env {
         let mut fish_map = Map2d::with_default(map_size + 2);
 
         for &(x, y) in input.saba.iter() {
-            let x = (x * map_size / Input::MAP_SIZE) + 1;
-            let y = (y * map_size / Input::MAP_SIZE) + 1;
-
-            // サボる
-            if x >= map_size || y >= map_size {
-                continue;
-            }
+            let x = (x * map_size / Input::MAP_SIZE).min(map_size - 1) + 1;
+            let y = (y * map_size / Input::MAP_SIZE).min(map_size - 1) + 1;
 
             fish_map[x][y] += 1;
         }
 
         for &(x, y) in input.iwashi.iter() {
-            let x = (x * map_size / Input::MAP_SIZE) + 1;
-            let y = (y * map_size / Input::MAP_SIZE) + 1;
-
-            // サボる
-            if x >= map_size || y >= map_size {
-                continue;
-            }
+            let x = (x * map_size / Input::MAP_SIZE).min(map_size - 1) + 1;
+            let y = (y * map_size / Input::MAP_SIZE).min(map_size - 1) + 1;
 
             fish_map[x][y] -= 1;
         }
