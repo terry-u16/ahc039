@@ -91,7 +91,6 @@ fn main() {
     eprintln!("[MAP_SIZE = {}]", map_size);
     eprintln!("{}", stats);
     let (env, state) = split_half(&input, &env, &state);
-    eprintln!("{} {}", state.score, state.len);
     map_size *= 2;
 
     let output = state.to_output(&env);
@@ -102,9 +101,7 @@ fn main() {
     let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.2);
     eprintln!("[MAP_SIZE = {}]", map_size);
     eprintln!("{}", stats);
-    eprintln!("{} {}", state.score, state.len);
     let (env, state) = split_half(&input, &env, &state);
-    eprintln!("{} {}", state.score, state.len);
     map_size *= 2;
 
     let output = state.to_output(&env);
@@ -112,7 +109,7 @@ fn main() {
 
     // div = 32
     let annealer = Annealer::new(TEMPS[5], TEMPS[5], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.15);
+    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.18);
     eprintln!("[MAP_SIZE = {}]", map_size);
     eprintln!("{}", stats);
     eprintln!("{} {}", state.score, state.len);
