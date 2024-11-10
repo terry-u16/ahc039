@@ -87,7 +87,7 @@ fn main() {
 
     // div = 8
     let annealer = Annealer::new(TEMPS[3], TEMPS[4], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.8);
+    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.5);
     eprintln!("[MAP_SIZE = {}]", map_size);
     eprintln!("{}", stats);
     let (env, state) = split_half(&input, &env, &state);
@@ -99,7 +99,20 @@ fn main() {
 
     // div = 16
     let annealer = Annealer::new(TEMPS[4], TEMPS[5], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.05);
+    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.2);
+    eprintln!("[MAP_SIZE = {}]", map_size);
+    eprintln!("{}", stats);
+    eprintln!("{} {}", state.score, state.len);
+    let (env, state) = split_half(&input, &env, &state);
+    eprintln!("{} {}", state.score, state.len);
+    map_size *= 2;
+
+    let output = state.to_output(&env);
+    println!("{}", output);
+
+    // div = 32
+    let annealer = Annealer::new(TEMPS[5], TEMPS[5], thread_rng().gen(), 1024);
+    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.15);
     eprintln!("[MAP_SIZE = {}]", map_size);
     eprintln!("{}", stats);
     eprintln!("{} {}", state.score, state.len);
@@ -355,6 +368,7 @@ impl State {
         ];
 
         let mut dir = 0;
+        let mut streak = 0;
 
         while vertexes[0] != *vertexes.last().unwrap() {
             // 左に曲がれる
@@ -363,6 +377,7 @@ impl State {
             if self.map[coord + ADJS[turn_left]] {
                 dir = turn_left;
                 coord = coord + ADJS[turn_left];
+                streak = 0;
                 continue;
             }
 
@@ -387,13 +402,19 @@ impl State {
                 _ => unreachable!(),
             };
 
+            if streak >= 1 {
+                vertexes.pop();
+            }
+
             vertexes.push(p);
 
             // 直進できる or not
             if self.map[coord + ADJS[dir]] {
                 coord += ADJS[dir];
+                streak += 1;
             } else {
                 dir = (dir + 1) % 4;
+                streak = 0;
             }
         }
 
@@ -1138,15 +1159,15 @@ mod grid {
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct Coord {
-        row: u8,
-        col: u8,
+        row: u16,
+        col: u16,
     }
 
     impl Coord {
         pub const fn new(row: usize, col: usize) -> Self {
             Self {
-                row: row as u8,
-                col: col as u8,
+                row: row as u16,
+                col: col as u16,
             }
         }
 
@@ -1159,7 +1180,7 @@ mod grid {
         }
 
         pub const fn in_map(&self, size: usize) -> bool {
-            self.row < size as u8 && self.col < size as u8
+            self.row < size as u16 && self.col < size as u16
         }
 
         pub const fn to_index(&self, size: usize) -> usize {
@@ -1170,22 +1191,22 @@ mod grid {
             Self::dist_1d(self.row, other.row) + Self::dist_1d(self.col, other.col)
         }
 
-        const fn dist_1d(x0: u8, x1: u8) -> usize {
+        const fn dist_1d(x0: u16, x1: u16) -> usize {
             (x0 as i64 - x1 as i64).abs() as usize
         }
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct CoordDiff {
-        dr: i8,
-        dc: i8,
+        dr: i16,
+        dc: i16,
     }
 
     impl CoordDiff {
         pub const fn new(dr: i32, dc: i32) -> Self {
             Self {
-                dr: dr as i8,
-                dc: dc as i8,
+                dr: dr as i16,
+                dc: dc as i16,
             }
         }
 
@@ -1210,16 +1231,16 @@ mod grid {
 
         fn add(self, rhs: CoordDiff) -> Self::Output {
             Coord {
-                row: self.row.wrapping_add(rhs.dr as u8),
-                col: self.col.wrapping_add(rhs.dc as u8),
+                row: self.row.wrapping_add(rhs.dr as u16),
+                col: self.col.wrapping_add(rhs.dc as u16),
             }
         }
     }
 
     impl AddAssign<CoordDiff> for Coord {
         fn add_assign(&mut self, rhs: CoordDiff) {
-            self.row = self.row.wrapping_add(rhs.dr as u8);
-            self.col = self.col.wrapping_add(rhs.dc as u8);
+            self.row = self.row.wrapping_add(rhs.dr as u16);
+            self.col = self.col.wrapping_add(rhs.dc as u16);
         }
     }
 
