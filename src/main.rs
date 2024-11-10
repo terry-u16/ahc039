@@ -35,8 +35,10 @@ fn main() {
     let env = Env::new(&input, map_size);
     let state = State::init(&env);
     let neigh_gen = NeighGen;
-
     const TEMPS: [f64; 5] = [5e2, 5e1, 1e1, 5e0, 1e0];
+
+    let output = state.to_output(&env);
+    println!("{}", output);
 
     // div = 1
     let annealer = Annealer::new(TEMPS[0], TEMPS[1], thread_rng().gen(), 1024);
@@ -46,6 +48,9 @@ fn main() {
     let (env, state) = split_half(&input, &env, &state);
     map_size *= 2;
 
+    let output = state.to_output(&env);
+    println!("{}", output);
+
     // div = 2
     let annealer = Annealer::new(TEMPS[1], TEMPS[2], thread_rng().gen(), 1024);
     let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.4);
@@ -54,6 +59,9 @@ fn main() {
     let (env, state) = split_half(&input, &env, &state);
     map_size *= 2;
 
+    let output = state.to_output(&env);
+    println!("{}", output);
+
     // div = 4
     let annealer = Annealer::new(TEMPS[2], TEMPS[3], thread_rng().gen(), 1024);
     let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.5);
@@ -61,6 +69,9 @@ fn main() {
     eprintln!("{}", stats);
     let (env, state) = split_half(&input, &env, &state);
     map_size *= 2;
+
+    let output = state.to_output(&env);
+    println!("{}", output);
 
     // div = 8
     let annealer = Annealer::new(TEMPS[3], TEMPS[4], thread_rng().gen(), 1024);
@@ -197,6 +208,7 @@ impl Env {
         }
     }
 
+    #[allow(dead_code)]
     fn dump_map(&self) {
         for col in (1..=self.map_size).rev() {
             for row in 1..=self.map_size {
@@ -232,6 +244,7 @@ impl State {
         }
     }
 
+    #[allow(dead_code)]
     fn dump_map(&self, env: &Env) {
         for col in (1..=env.map_size).rev() {
             for row in 1..=env.map_size {
