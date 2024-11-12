@@ -7,6 +7,7 @@ use grid::{ConnectionChecker, Coord, CoordDiff, Map2d, ADJACENTS};
 use proconio::*;
 #[allow(unused_imports)]
 use rand::prelude::*;
+use rand_distr::num_traits::Pow;
 
 pub trait ChangeMinMax {
     fn change_min(&mut self, v: Self) -> bool;
@@ -34,88 +35,121 @@ fn main() {
     let input = Input::read_input();
     let mut map_size = 10;
     let env = Env::new(&input, map_size);
-    let state = State::init(&env);
+    let mut state = State::init(&env);
     let neigh_gen = NeighGen;
-    const TEMPS: [f64; 6] = [5e2, 5e1, 1e1, 3e0, 1e0, 3e-1];
+    const TEMPS: [f64; 7] = [5e2, 5e1, 1e1, 3e0, 1e0, 3e-1, 1e-1];
+    const FRAMES: usize = 7;
 
     let output = state.to_output(&env);
     println!("{}", output);
 
     // div = 1
-    let annealer = Annealer::new(TEMPS[0], TEMPS[1], thread_rng().gen(), 1024);
-    eprintln!(
-        "{} {}",
-        state.off_candidates.len(),
-        state.on_candidates.len()
-    );
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.1);
-    eprintln!(
-        "{} {}",
-        state.off_candidates.len(),
-        state.on_candidates.len()
-    );
+    for i in 0..FRAMES {
+        let t0 = i as f64 / FRAMES as f64;
+        let t1 = (i + 1) as f64 / FRAMES as f64;
+        let temp0 = TEMPS[0].powf(1.0 - t0) * TEMPS[1].powf(t0);
+        let temp1 = TEMPS[0].powf(1.0 - t1) * TEMPS[1].powf(t1);
+        let annealer = Annealer::new(temp0, temp1, thread_rng().gen(), 1024);
+        let (s, _) = annealer.run(&env, state, &neigh_gen, 0.1 / FRAMES as f64);
+        state = s;
+        let output = state.to_output(&env);
+        println!("{}", output);
+    }
 
-    eprintln!("[MAP_SIZE = {}]", map_size);
-    eprintln!("{}", stats);
-    let (env, state) = split_half(&input, &env, &state);
+    let (env, mut state) = split_half(&input, &env, &state);
     map_size *= 2;
 
     let output = state.to_output(&env);
     println!("{}", output);
 
     // div = 2
-    let annealer = Annealer::new(TEMPS[1], TEMPS[2], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.3);
-    eprintln!("[MAP_SIZE = {}]", map_size);
-    eprintln!("{}", stats);
-    let (env, state) = split_half(&input, &env, &state);
+    for i in 0..FRAMES {
+        let t0 = i as f64 / FRAMES as f64;
+        let t1 = (i + 1) as f64 / FRAMES as f64;
+        let temp0 = TEMPS[1].powf(1.0 - t0) * TEMPS[2].powf(t0);
+        let temp1 = TEMPS[1].powf(1.0 - t1) * TEMPS[2].powf(t1);
+        let annealer = Annealer::new(temp0, temp1, thread_rng().gen(), 1024);
+        let (s, _) = annealer.run(&env, state, &neigh_gen, 0.3 / FRAMES as f64);
+        state = s;
+        let output = state.to_output(&env);
+        println!("{}", output);
+    }
+
+    let (env, mut state) = split_half(&input, &env, &state);
     map_size *= 2;
 
     let output = state.to_output(&env);
     println!("{}", output);
 
     // div = 4
-    let annealer = Annealer::new(TEMPS[2], TEMPS[3], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.5);
-    eprintln!("[MAP_SIZE = {}]", map_size);
-    eprintln!("{}", stats);
-    let (env, state) = split_half(&input, &env, &state);
+    for i in 0..FRAMES {
+        let t0 = i as f64 / FRAMES as f64;
+        let t1 = (i + 1) as f64 / FRAMES as f64;
+        let temp0 = TEMPS[2].powf(1.0 - t0) * TEMPS[3].powf(t0);
+        let temp1 = TEMPS[2].powf(1.0 - t1) * TEMPS[3].powf(t1);
+        let annealer = Annealer::new(temp0, temp1, thread_rng().gen(), 1024);
+        let (s, _) = annealer.run(&env, state, &neigh_gen, 0.5 / FRAMES as f64);
+        state = s;
+        let output = state.to_output(&env);
+        println!("{}", output);
+    }
+
+    let (env, mut state) = split_half(&input, &env, &state);
     map_size *= 2;
 
     let output = state.to_output(&env);
     println!("{}", output);
 
     // div = 8
-    let annealer = Annealer::new(TEMPS[3], TEMPS[4], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.6);
-    eprintln!("[MAP_SIZE = {}]", map_size);
-    eprintln!("{}", stats);
-    let (env, state) = split_half(&input, &env, &state);
+    for i in 0..FRAMES {
+        let t0 = i as f64 / FRAMES as f64;
+        let t1 = (i + 1) as f64 / FRAMES as f64;
+        let temp0 = TEMPS[3].powf(1.0 - t0) * TEMPS[4].powf(t0);
+        let temp1 = TEMPS[3].powf(1.0 - t1) * TEMPS[4].powf(t1);
+        let annealer = Annealer::new(temp0, temp1, thread_rng().gen(), 1024);
+        let (s, _) = annealer.run(&env, state, &neigh_gen, 0.6 / FRAMES as f64);
+        state = s;
+        let output = state.to_output(&env);
+        println!("{}", output);
+    }
+
+    let (env, mut state) = split_half(&input, &env, &state);
     map_size *= 2;
 
     let output = state.to_output(&env);
     println!("{}", output);
 
     // div = 16
-    let annealer = Annealer::new(TEMPS[4], TEMPS[5], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.3);
-    eprintln!("[MAP_SIZE = {}]", map_size);
-    eprintln!("{}", stats);
-    let (env, state) = split_half(&input, &env, &state);
+    for i in 0..FRAMES {
+        let t0 = i as f64 / FRAMES as f64;
+        let t1 = (i + 1) as f64 / FRAMES as f64;
+        let temp0 = TEMPS[4].powf(1.0 - t0) * TEMPS[5].powf(t0);
+        let temp1 = TEMPS[4].powf(1.0 - t1) * TEMPS[5].powf(t1);
+        let annealer = Annealer::new(temp0, temp1, thread_rng().gen(), 1024);
+        let (s, _) = annealer.run(&env, state, &neigh_gen, 0.3 / FRAMES as f64);
+        state = s;
+        let output = state.to_output(&env);
+        println!("{}", output);
+    }
+
+    let (env, mut state) = split_half(&input, &env, &state);
     map_size *= 2;
 
     let output = state.to_output(&env);
     println!("{}", output);
 
     // div = 32
-    let annealer = Annealer::new(TEMPS[5], TEMPS[5], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.18);
-    eprintln!("[MAP_SIZE = {}]", map_size);
-    eprintln!("{}", stats);
-    eprintln!("{} {}", state.score, state.len);
-
-    let output = state.to_output(&env);
-    println!("{}", output);
+    for i in 0..FRAMES {
+        let t0 = i as f64 / FRAMES as f64;
+        let t1 = (i + 1) as f64 / FRAMES as f64;
+        let temp0 = TEMPS[5].powf(1.0 - t0) * TEMPS[6].powf(t0);
+        let temp1 = TEMPS[5].powf(1.0 - t1) * TEMPS[6].powf(t1);
+        let annealer = Annealer::new(temp0, temp1, thread_rng().gen(), 1024);
+        let (s, _) = annealer.run(&env, state, &neigh_gen, 0.18 / FRAMES as f64);
+        state = s;
+        let output = state.to_output(&env);
+        println!("{}", output);
+    }
 }
 
 fn split_half(input: &Input, env: &Env, state: &State) -> (Env, State) {
@@ -944,7 +978,7 @@ mod annealing {
 
             diagnostics.final_score = best_state.score(&env).raw_score();
 
-            (best_state, diagnostics)
+            (state, diagnostics)
         }
     }
 
