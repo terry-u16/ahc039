@@ -1,0 +1,43 @@
+[general]
+version = "0.1.0"
+
+[problem]
+problem_name = "ahc039"
+objective = "Max"
+score_regex = '^\s*Score\s*=\s*(?P<score>\d+)\s*$'
+
+[test]
+start_seed = 0
+end_seed = 100
+threads = 0
+
+[[test.compile_steps]]
+program = "cargo"
+args = ["build", "--release"]
+
+[[test.compile_steps]]
+program = "rm"
+args = ["./ahc039", "-f"]
+
+[[test.compile_steps]]
+program = "mv"
+args = ["../target/release/ahc039", "./ahc039"]
+
+[[test.test_steps]]
+program = "./ahc039"
+args = []
+stdin = "./testcase/in/{SEED04}.txt"
+stdout = "./testcase/out/{SEED04}.txt"
+stderr = "./testcase/err/{SEED04}.txt"
+
+[[test.test_steps]]
+program = "cargo"
+args = [
+    "run",
+    "--bin",
+    "vis",
+    "--release",
+    "../testcase/in/{SEED04}.txt",
+    "../testcase/out/{SEED04}.txt",
+]
+current_dir = "./tools/"
