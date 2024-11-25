@@ -10,6 +10,7 @@ score_regex = '^\s*Score\s*=\s*(?P<score>\d+)\s*$'
 start_seed = 0
 end_seed = 100
 threads = 0
+out_dir = "./pahcer"
 
 [[test.compile_steps]]
 program = "cargo"
@@ -45,7 +46,4 @@ stderr = "./testcase/err/{SEED04}.txt"
 
 [[test.test_steps]]
 program = "./vis"
-args = [
-    "./testcase/in/{SEED04}.txt",
-    "./testcase/out/{SEED04}.txt",
-]
+args = ["./testcase/in/{SEED04}.txt", "./testcase/out/{SEED04}.txt"]
