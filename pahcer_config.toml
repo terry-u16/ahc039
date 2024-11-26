@@ -43,7 +43,9 @@ args = []
 stdin = "./testcase/in/{SEED04}.txt"
 stdout = "./testcase/out/{SEED04}.txt"
 stderr = "./testcase/err/{SEED04}.txt"
+measure_time = true
 
 [[test.test_steps]]
 program = "./vis"
 args = ["./testcase/in/{SEED04}.txt", "./testcase/out/{SEED04}.txt"]
+measure_time = false
