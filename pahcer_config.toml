@@ -4,7 +4,7 @@ version = "0.1.0"
 [problem]
 problem_name = "ahc039"
 objective = "Max"
-score_regex = '^\s*Score\s*=\s*(?P<score>\d+)\s*$'
+score_regex = '(?m)^\s*Score\s*=\s*(?P<score>\d+)\s*$'
 
 [test]
 start_seed = 0
