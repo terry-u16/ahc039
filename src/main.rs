@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use annealing::{Annealer, Neighbor, NeighborGenerator, SingleScore};
 use data_structures::IndexSet;
 use grid::{ConnectionChecker, Coord, CoordDiff, Map2d, ADJACENTS};
@@ -7,6 +5,7 @@ use grid::{ConnectionChecker, Coord, CoordDiff, Map2d, ADJACENTS};
 use proconio::*;
 #[allow(unused_imports)]
 use rand::prelude::*;
+use std::{env, fmt::Display, str::FromStr};
 
 pub trait ChangeMinMax {
     fn change_min(&mut self, v: Self) -> bool;
@@ -29,34 +28,74 @@ impl<T: PartialOrd> ChangeMinMax for T {
     }
 }
 
+struct Params {
+    temperatures: [f64; 7],
+    durations: [f64; 6],
+    parallels: [usize; 6],
+}
+
+impl Params {
+    fn new() -> Self {
+        let temp0 = Self::try_get_env("AHC_TEMP0").unwrap_or(911.6508405882288);
+        let temp1 = Self::try_get_env("AHC_TEMP1").unwrap_or(70.3911552782093);
+        let temp2 = Self::try_get_env("AHC_TEMP2").unwrap_or(6.816858883889997);
+        let temp3 = Self::try_get_env("AHC_TEMP3").unwrap_or(1.9010150073924759);
+        let temp4 = Self::try_get_env("AHC_TEMP4").unwrap_or(2.223534078180996);
+        let temp5 = Self::try_get_env("AHC_TEMP5").unwrap_or(0.4308224020579123);
+        let temp6 = Self::try_get_env("AHC_TEMP6").unwrap_or(0.10455800310377424);
+
+        let mut duraiton0 = Self::try_get_env("AHC_DURATION0").unwrap_or(9.148635730428001);
+        let mut duraiton1 = Self::try_get_env("AHC_DURATION1").unwrap_or(61.39483181126377);
+        let mut duraiton2 = Self::try_get_env("AHC_DURATION2").unwrap_or(2.905273207399699);
+        let mut duraiton3 = Self::try_get_env("AHC_DURATION3").unwrap_or(5.963677985847345);
+        let mut duraiton4 = Self::try_get_env("AHC_DURATION4").unwrap_or(30.510520406546867);
+        let mut duraiton5 = Self::try_get_env("AHC_DURATION5").unwrap_or(36.86861296023562);
+        let duration_sum = duraiton0 + duraiton1 + duraiton2 + duraiton3 + duraiton4 + duraiton5;
+        const TIME_LIMIT: f64 = 1.95;
+        duraiton0 *= TIME_LIMIT / duration_sum;
+        duraiton1 *= TIME_LIMIT / duration_sum;
+        duraiton2 *= TIME_LIMIT / duration_sum;
+        duraiton3 *= TIME_LIMIT / duration_sum;
+        duraiton4 *= TIME_LIMIT / duration_sum;
+        duraiton5 *= TIME_LIMIT / duration_sum;
+
+        let parallel0 = Self::try_get_env("AHC_PARALLEL0").unwrap_or(19);
+        let parallel1 = Self::try_get_env("AHC_PARALLEL1").unwrap_or(10);
+        let parallel2 = Self::try_get_env("AHC_PARALLEL2").unwrap_or(5);
+        let parallel3 = Self::try_get_env("AHC_PARALLEL3").unwrap_or(2);
+        let parallel4 = Self::try_get_env("AHC_PARALLEL4").unwrap_or(2);
+        let parallel5 = Self::try_get_env("AHC_PARALLEL5").unwrap_or(1);
+
+        Self {
+            temperatures: [temp0, temp1, temp2, temp3, temp4, temp5, temp6],
+            durations: [
+                duraiton0, duraiton1, duraiton2, duraiton3, duraiton4, duraiton5,
+            ],
+            parallels: [
+                parallel0, parallel1, parallel2, parallel3, parallel4, parallel5,
+            ],
+        }
+    }
+
+    fn try_get_env<T: FromStr>(name: &str) -> Option<T> {
+        env::var(name).ok().and_then(|s| s.parse().ok())
+    }
+}
+
 #[fastout]
 fn main() {
     let input = Input::read_input();
+    let params = Params::new();
     let mut map_size = 10;
     let env = Env::new(&input, map_size);
     let state = State::init(&env);
-    let neigh_gen = NeighGen;
-    const TEMPS: [f64; 6] = [5e2, 5e1, 1e1, 3e0, 1e0, 3e-1];
 
     let output = state.to_output(&env);
     println!("{}", output);
 
     // div = 1
-    let annealer = Annealer::new(TEMPS[0], TEMPS[1], thread_rng().gen(), 1024);
-    eprintln!(
-        "{} {}",
-        state.off_candidates.len(),
-        state.on_candidates.len()
-    );
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.1);
-    eprintln!(
-        "{} {}",
-        state.off_candidates.len(),
-        state.on_candidates.len()
-    );
-
     eprintln!("[MAP_SIZE = {}]", map_size);
-    eprintln!("{}", stats);
+    let state = run_annealing(&env, state, &params, 0);
     let (env, state) = split_half(&input, &env, &state);
     map_size *= 2;
 
@@ -64,10 +103,8 @@ fn main() {
     println!("{}", output);
 
     // div = 2
-    let annealer = Annealer::new(TEMPS[1], TEMPS[2], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.3);
     eprintln!("[MAP_SIZE = {}]", map_size);
-    eprintln!("{}", stats);
+    let state = run_annealing(&env, state, &params, 1);
     let (env, state) = split_half(&input, &env, &state);
     map_size *= 2;
 
@@ -75,10 +112,8 @@ fn main() {
     println!("{}", output);
 
     // div = 4
-    let annealer = Annealer::new(TEMPS[2], TEMPS[3], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.5);
     eprintln!("[MAP_SIZE = {}]", map_size);
-    eprintln!("{}", stats);
+    let state = run_annealing(&env, state, &params, 2);
     let (env, state) = split_half(&input, &env, &state);
     map_size *= 2;
 
@@ -86,10 +121,8 @@ fn main() {
     println!("{}", output);
 
     // div = 8
-    let annealer = Annealer::new(TEMPS[3], TEMPS[4], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.6);
     eprintln!("[MAP_SIZE = {}]", map_size);
-    eprintln!("{}", stats);
+    let state = run_annealing(&env, state, &params, 3);
     let (env, state) = split_half(&input, &env, &state);
     map_size *= 2;
 
@@ -97,10 +130,8 @@ fn main() {
     println!("{}", output);
 
     // div = 16
-    let annealer = Annealer::new(TEMPS[4], TEMPS[5], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.3);
     eprintln!("[MAP_SIZE = {}]", map_size);
-    eprintln!("{}", stats);
+    let state = run_annealing(&env, state, &params, 4);
     let (env, state) = split_half(&input, &env, &state);
     map_size *= 2;
 
@@ -108,14 +139,43 @@ fn main() {
     println!("{}", output);
 
     // div = 32
-    let annealer = Annealer::new(TEMPS[5], TEMPS[5], thread_rng().gen(), 1024);
-    let (state, stats) = annealer.run(&env, state, &neigh_gen, 0.18);
     eprintln!("[MAP_SIZE = {}]", map_size);
-    eprintln!("{}", stats);
+    let state = run_annealing(&env, state, &params, 5);
     eprintln!("{} {}", state.score, state.len);
 
     let output = state.to_output(&env);
     println!("{}", output);
+}
+
+fn run_annealing(env: &Env, state: State, params: &Params, iter: usize) -> State {
+    let neigh_gen = NeighGen;
+    let annealer = Annealer::new(
+        params.temperatures[iter],
+        params.temperatures[iter + 1],
+        thread_rng().gen(),
+        1024,
+    );
+
+    let mut best_state = state.clone();
+    let mut best_stats = None;
+    let mut best_score = state.score;
+    let each_time = params.durations[iter] / params.parallels[iter] as f64;
+
+    for _ in 0..params.parallels[iter] {
+        let (state, stats) = annealer.run(env, state.clone(), &neigh_gen, each_time);
+        eprintln!("{}", stats);
+
+        if best_score.change_max(state.score) {
+            best_state = state;
+            best_stats = Some(stats);
+        }
+    }
+
+    if let Some(stats) = best_stats {
+        eprintln!("{}", stats);
+    }
+
+    best_state
 }
 
 fn split_half(input: &Input, env: &Env, state: &State) -> (Env, State) {
